@@ -1,36 +1,31 @@
 package com.redwedding;
 
 import co.paralleluniverse.fibers.Fiber;
-import co.paralleluniverse.fibers.Suspendable;
+import co.paralleluniverse.fibers.SuspendExecution;
 import co.paralleluniverse.fibers.retrofit.FiberRestAdapterBuilder;
-import co.paralleluniverse.strands.Strand;
 import com.redwedding.request.CreateOrderItemRequest;
 import com.redwedding.request.CreateOrderRequest;
 import com.redwedding.request.PayOrderRequest;
 import com.redwedding.response.CreateOrderResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.boot.CommandLineRunner;
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
 import retrofit.converter.JacksonConverter;
 
 import java.util.Random;
 import java.util.Scanner;
 import java.util.UUID;
+import java.util.concurrent.ExecutionException;
 
-@SpringBootApplication
-public class LoadTestApplication implements CommandLineRunner {
+public class LoadTestApplication {
 
     Random random = new Random();
 
     private static final Logger LOGGER = LoggerFactory.getLogger(LoadTestApplication.class);
 
-    public static void main(String[] args) {
-        SpringApplication.run(LoadTestApplication.class, args);
+    public static void main(String[] args) throws Exception {
+        new LoadTestApplication().run(args);
     }
 
-    @Override
     public void run(String... args) throws Exception {
         if (args.length > 0) {
             String baseUrl = args[0];
@@ -49,10 +44,12 @@ public class LoadTestApplication implements CommandLineRunner {
 
             new Scanner(System.in).next();
         }
+        else {
+            LOGGER.info("no args.");
+        }
     }
 
-    @Suspendable
-    private void fiberSimulateUser(ApiService apiService) {
+    private void fiberSimulateUser(ApiService apiService) throws SuspendExecution {
         new Fiber<Void>("simulate-user", () -> {
             try {
                 while (true) {
@@ -68,8 +65,7 @@ public class LoadTestApplication implements CommandLineRunner {
         }).start();
     }
 
-    @Suspendable
-    private void fiberFirstCustomer(final ApiService apiService, final String id) {
+    private void fiberFirstCustomer(final ApiService apiService, final String id) throws SuspendExecution {
         new Fiber<Void>("firstCustomer", () -> {
             //Adiciona 5 itens de um produto a ordem, um OrderItem com o valor 5 na quantidade
             createOrderItem(apiService, id, 5);
@@ -87,8 +83,7 @@ public class LoadTestApplication implements CommandLineRunner {
 
     }
 
-    @Suspendable
-    private String createOrder(ApiService apiService) throws Exception {
+    private String createOrder(ApiService apiService) throws SuspendExecution, ExecutionException, InterruptedException {
         return new Fiber<>("createOrder", () -> {
             long start = System.currentTimeMillis();
             CreateOrderRequest request = new CreateOrderRequest("1", "ref-001", "nota", 15000L);
@@ -99,8 +94,7 @@ public class LoadTestApplication implements CommandLineRunner {
         }).start().get();
     }
 
-    @Suspendable
-    private void createOrderItem(ApiService apiService, String id, long quantity) {
+    private void createOrderItem(ApiService apiService, String id, long quantity) throws SuspendExecution {
         new Fiber<Void>("createOrderItem", () -> {
             long start = System.currentTimeMillis();
             UUID sku = UUID.randomUUID();
@@ -112,8 +106,7 @@ public class LoadTestApplication implements CommandLineRunner {
         }).start();
     }
 
-    @Suspendable
-    private void payOrder(ApiService apiService, String id, long amount) {
+    private void payOrder(ApiService apiService, String id, long amount) throws SuspendExecution {
         new Fiber<Void>("payOrder", () -> {
             long start = System.currentTimeMillis();
             PayOrderRequest request = new PayOrderRequest("10", amount, "PAYMENT", "VISA", "1402", "3211");
@@ -123,8 +116,7 @@ public class LoadTestApplication implements CommandLineRunner {
         }).start();
     }
 
-    @Suspendable
-    private void getOrder(ApiService apiService, String id) {
+    private void getOrder(ApiService apiService, String id) throws SuspendExecution {
         new Fiber<Void>("getOrder", () -> {
             long start = System.currentTimeMillis();
             apiService.getOrder(id);
